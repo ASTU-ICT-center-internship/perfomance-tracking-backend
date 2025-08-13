@@ -1,71 +1,80 @@
-const { pool } = require("../config/db");
 
-// Get all evaluation types
+const db = require("../config/db");
+// Utility: Safe number conversion
+const safeNumber = (value) => {
+  const num = parseFloat(value);
+  return isNaN(num) ? 0 : num;
+};
+
 exports.getAllTypes = async (req, res, next) => {
   try {
-    const [rows] = await pool.query("SELECT * FROM type");
+    const [rows] = await db.query("SELECT * FROM type");
     res.json(rows);
-  } catch (error) {
-    next(error);
+  } catch (err) {
+    next(err);
   }
 };
 
-// Get evaluation type by ID
 exports.getTypeById = async (req, res, next) => {
-  const tid = req.params.tid;
   try {
-    const [rows] = await pool.query("SELECT * FROM type WHERE tid = ?", [tid]);
-    if (rows.length === 0) {
-      return res.status(404).json({ message: "Evaluation type not found" });
-    }
+    const [rows] = await db.query("SELECT * FROM type WHERE id = ?", [req.params.tid]);
+    if (!rows.length) return res.status(404).json({ message: "Type not found" });
     res.json(rows[0]);
-  } catch (error) {
-    next(error);
+  } catch (err) {
+    next(err);
   }
 };
 
-// Create new evaluation type
 exports.createType = async (req, res, next) => {
-  const { typeofevaluation, section_percentage } = req.body;
   try {
-    const [result] = await pool.query(
-      "INSERT INTO type (typeofevaluation, section_percentage) VALUES (?, ?)",
-      [typeofevaluation, section_percentage]
+    const { name, description, section_percentage } = req.body;
+
+    // Validation: Check that section_percentage sum <= 100
+    const totalPercentage = safeNumber(section_percentage);
+    if (totalPercentage <= 0 || totalPercentage > 100) {
+      return res.status(400).json({ message: "Section percentage must be between 1 and 100" });
+    }
+
+    const [result] = await db.query(
+      "INSERT INTO type (name, description, section_percentage) VALUES (?, ?, ?)",
+      [name, description, totalPercentage]
     );
-    res.status(201).json({ tid: result.insertId, typeofevaluation, section_percentage });
-  } catch (error) {
-    next(error);
+
+    res.status(201).json({ id: result.insertId, name, description, section_percentage: totalPercentage });
+  } catch (err) {
+    next(err);
   }
 };
 
-// Update evaluation type
 exports.updateType = async (req, res, next) => {
-  const tid = req.params.tid;
-  const { typeofevaluation, section_percentage } = req.body;
   try {
-    const [result] = await pool.query(
-      "UPDATE type SET typeofevaluation = ?, section_percentage = ? WHERE tid = ?",
-      [typeofevaluation, section_percentage, tid]
-    );
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Evaluation type not found" });
+    const { name, description, section_percentage } = req.body;
+    const totalPercentage = safeNumber(section_percentage);
+
+    if (totalPercentage <= 0 || totalPercentage > 100) {
+      return res.status(400).json({ message: "Section percentage must be between 1 and 100" });
     }
-    res.json({ tid, typeofevaluation, section_percentage });
-  } catch (error) {
-    next(error);
+
+    const [result] = await db.query(
+      "UPDATE type SET name = ?, description = ?, section_percentage = ? WHERE id = ?",
+      [name, description, totalPercentage, req.params.tid]
+    );
+
+    if (result.affectedRows === 0) return res.status(404).json({ message: "Type not found" });
+
+    res.json({ id: req.params.tid, name, description, section_percentage: totalPercentage });
+  } catch (err) {
+    next(err);
   }
 };
 
-// Delete evaluation type
 exports.deleteType = async (req, res, next) => {
-  const tid = req.params.tid;
   try {
-    const [result] = await pool.query("DELETE FROM type WHERE tid = ?", [tid]);
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Evaluation type not found" });
-    }
-    res.json({ message: "Evaluation type deleted successfully" });
-  } catch (error) {
-    next(error);
+    const [result] = await db.query("DELETE FROM type WHERE id = ?", [req.params.tid]);
+    if (result.affectedRows === 0) return res.status(404).json({ message: "Type not found" });
+
+    res.json({ message: "Type deleted successfully" });
+  } catch (err) {
+    next(err);
   }
 };
