@@ -24,6 +24,9 @@ app.use(cors({ origin: "*", credentials: true }));
 app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
+
+
+
 (async () => {
   await initializeDatabase();
 
@@ -38,7 +41,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
   app.use("/api/criteria", criteriaRoutes);
   app.use("/api/report", reportRoutes);
 
-  app.use(globalErrorMiddleware);
+  //app.use(globalErrorMiddleware);
 
   app.listen(port, () => {
     console.log(`Server running on port ${port}`);
